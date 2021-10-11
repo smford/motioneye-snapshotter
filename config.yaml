@@ -1,0 +1,9 @@
+listenip: 127.0.0.1
+listenport: 5757
+meserver: http://127.0.0.1:8765
+meuser: admin
+mesig: xxxxXXxxxxxXxxxx
+indexfile: ./index.html
+cameras:
+  1: main-door
+  2: lobby
