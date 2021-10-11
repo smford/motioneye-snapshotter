@@ -3,9 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 	"io"
 	"io/ioutil"
 	"log"
@@ -16,6 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -27,17 +28,16 @@ var (
 	outputDir  string
 )
 
-// application version
-const APPLICATION_VERSION string = "v0.2"
+const applicationVersion string = "v0.3"
 
 // header file for webpages
-const WEBPAGEHEADER string = `<!DOCTYPE HTML>
+const webpageheader string = `<!DOCTYPE HTML>
 <html>
 <body>
 `
 
 // footer file for webpages
-const WEBPAGEFOOTER string = `</body>
+const webpagefooter string = `</body>
 </html>
 `
 
@@ -45,6 +45,7 @@ func init() {
 	configFile := flag.String("config", "", "Configuration file")
 	configFilePath := flag.String("configpath", "", "Path to configuration file")
 	flag.Bool("displayconfig", false, "Display configuration")
+	flag.Bool("help", false, "Display help information")
 	flag.String("indexfile", "./index.html", "Default index file")
 	flag.String("listenip", "127.0.0.1", "IP address to bind to")
 	flag.String("listenport", "5757", "Port to bind to")
@@ -92,6 +93,11 @@ func init() {
 }
 
 func main() {
+	if viper.GetBool("help") {
+		displayHelp()
+		os.Exit(0)
+	}
+
 	if viper.GetBool("displayconfig") {
 		displayConfig()
 		os.Exit(0)
@@ -217,7 +223,7 @@ func handlerCameras(w http.ResponseWriter, r *http.Request) {
 }
 
 // https://yourbasic.org/golang/formatting-byte-size-to-human-readable-format/
-func ByteCountSI(b int64) string {
+func byteCountSI(b int64) string {
 	const unit = 1000
 	if b < unit {
 		return fmt.Sprintf("%d B", b)
@@ -234,7 +240,7 @@ func ByteCountSI(b int64) string {
 func handlerCameraFiles(w http.ResponseWriter, r *http.Request) {
 	groups := viper.GetStringMap("cameras")
 
-	fmt.Fprintf(w, WEBPAGEHEADER)
+	fmt.Fprintf(w, webpageheader)
 	fmt.Fprintf(w, "<table>\n")
 
 	keys := make([]string, 0, len(groups))
@@ -249,7 +255,7 @@ func handlerCameraFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(w, "</table>\n")
-	fmt.Fprintf(w, WEBPAGEFOOTER)
+	fmt.Fprintf(w, webpagefooter)
 }
 
 func handlerFiles(w http.ResponseWriter, r *http.Request) {
@@ -288,19 +294,19 @@ func handlerFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, WEBPAGEHEADER)
+	fmt.Fprintf(w, webpageheader)
 	fmt.Fprintf(w, "<table>\n")
 
 	for _, file := range files {
 		if file.IsDir() {
 			fmt.Fprintf(w, "  <tr><td>Directory: %s</td><td></td></tr>\n", file.Name())
 		} else {
-			fmt.Fprintf(w, "  <tr><td><a href=\"./%s?file=%s\">%s</a></td><td>%s</td></tr>\n", strings.ToLower(vars["camera"]), file.Name(), file.Name(), ByteCountSI(file.Size()))
+			fmt.Fprintf(w, "  <tr><td><a href=\"./%s?file=%s\">%s</a></td><td>%s</td></tr>\n", strings.ToLower(vars["camera"]), file.Name(), file.Name(), byteCountSI(file.Size()))
 		}
 	}
 
 	fmt.Fprintf(w, "</table>\n")
-	fmt.Fprintf(w, WEBPAGEFOOTER)
+	fmt.Fprintf(w, webpagefooter)
 }
 
 // does a string slice contain a value
@@ -367,4 +373,21 @@ func handlerShowImage(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "image/jpeg")
 	printFile(outputDir+"/camera"+camerakey+cleanFileName, w)
+}
+
+func displayHelp() {
+	message := `      --config string       Configuration file
+      --configpath string   Path to configuration file
+      --displayconfig       Display configuration
+      --help                Display help information
+      --indexfile string    Default index file (default "./index.html")
+      --listenip string     IP address to bind to (default "127.0.0.1")
+      --listenport string   Port to bind to (default "5757")
+      --meserver string     MotionEye Server URL
+      --mesig string        MotionEye Snapshot Signiture
+      --meuser string       MotionEye Username
+      --outputdir string    Output Directory (default "./output")
+`
+	fmt.Println("motioneye-snapshotter " + applicationVersion)
+	fmt.Println(message)
 }
