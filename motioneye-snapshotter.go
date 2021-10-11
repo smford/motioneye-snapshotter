@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,7 +24,22 @@ var (
 	meServer   string
 	meSig      string
 	meUser     string
+	outputDir  string
 )
+
+// application version
+const APPLICATION_VERSION string = "v0.2"
+
+// header file for webpages
+const WEBPAGEHEADER string = `<!DOCTYPE HTML>
+<html>
+<body>
+`
+
+// footer file for webpages
+const WEBPAGEFOOTER string = `</body>
+</html>
+`
 
 func init() {
 	configFile := flag.String("config", "", "Configuration file")
@@ -35,6 +51,7 @@ func init() {
 	flag.String("meuser", "", "MotionEye Username")
 	flag.String("mesig", "", "MotionEye Snapshot Signiture")
 	flag.String("meserver", "", "MotionEye Server URL")
+	flag.String("outputdir", "./output", "Output Directory")
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
 	viper.BindPFlags(pflag.CommandLine)
@@ -53,9 +70,9 @@ func init() {
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			log.Fatal("Log file not found")
+			log.Fatal("Config file not found")
 		} else {
-			log.Fatalf("Config file was found but another error was produced")
+			log.Fatal("Config file was found but another error was discovered")
 		}
 	}
 
@@ -64,12 +81,14 @@ func init() {
 	meServer = viper.GetString("meserver")
 	meSig = viper.GetString("mesig")
 	meUser = viper.GetString("meuser")
+	outputDir = viper.GetString("outputdir")
 
 	log.Println("listenport=", listenPort)
 	log.Println("listenip=", listenIp)
 	log.Println("meserver=", meServer)
 	log.Println("mesig=", meSig)
 	log.Println("meuser=", meUser)
+	log.Println("outputdir=", outputDir)
 }
 
 func main() {
@@ -86,16 +105,16 @@ func takeSnapshot(camera int) {
 	fileUrl := meServer + "/picture/" + strconv.Itoa(camera) + "/current/?_username=" + meUser + "&_signature=" + meSig
 	log.Println("fileUrl= ", fileUrl)
 	fileName := (currentTime.Format("20060102_150405") + ".jpg")
-	fileDir := "output/camera" + strconv.Itoa(camera) + "/"
-	err := DownloadFile(fileDir+fileName, fileUrl)
+	fileDir := outputDir + "/camera" + strconv.Itoa(camera) + "/"
+	err := downloadFile(fileDir+fileName, fileUrl)
 	if err != nil {
-		panic(err)
-		fmt.Println("Could not download file: " + fileName)
+		log.Println("ERROR: Could not download file: " + fileName)
+		log.Println(err)
 	}
 	log.Println("Downloaded: " + fileDir + fileName)
 }
 
-func DownloadFile(filepath string, url string) error {
+func downloadFile(filepath string, url string) error {
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
@@ -119,6 +138,14 @@ func startWeb(listenip string, listenport string) {
 
 	hostsRouter := r.PathPrefix("/snap").Subrouter()
 	hostsRouter.HandleFunc("", handlerSnap)
+
+	camerasRouter := r.PathPrefix("/cameras").Subrouter()
+	camerasRouter.HandleFunc("", handlerCameras)
+
+	filesRouter := r.PathPrefix("/files").Subrouter()
+	filesRouter.HandleFunc("", handlerCameraFiles)
+	filesRouter.HandleFunc("/{camera}", handlerShowImage).Queries("file", "")
+	filesRouter.HandleFunc("/{camera}", handlerFiles)
 
 	log.Println("Starting HTTP Webserver: http://" + listenIp + ":" + listenPort)
 	err := http.ListenAndServe(listenIp+":"+listenPort, r)
@@ -180,4 +207,164 @@ func displayConfig() {
 	for _, k := range keys {
 		fmt.Println("CONFIG:", k, ":", allmysettings[k])
 	}
+}
+
+func handlerCameras(w http.ResponseWriter, r *http.Request) {
+	groups := viper.GetStringMap("cameras")
+	for k, v := range groups {
+		fmt.Fprintf(w, "%s: %s\n", k, v)
+	}
+}
+
+// https://yourbasic.org/golang/formatting-byte-size-to-human-readable-format/
+func ByteCountSI(b int64) string {
+	const unit = 1000
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB",
+		float64(b)/float64(div), "kMGTPE"[exp])
+}
+
+func handlerCameraFiles(w http.ResponseWriter, r *http.Request) {
+	groups := viper.GetStringMap("cameras")
+
+	fmt.Fprintf(w, WEBPAGEHEADER)
+	fmt.Fprintf(w, "<table>\n")
+
+	keys := make([]string, 0, len(groups))
+
+	for k := range groups {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		fmt.Fprintf(w, "  <tr><td>%s</td><td><a href=\"./files/%s\">%s</a></td></tr>\n", k, groups[k], groups[k])
+	}
+
+	fmt.Fprintf(w, "</table>\n")
+	fmt.Fprintf(w, WEBPAGEFOOTER)
+}
+
+func handlerFiles(w http.ResponseWriter, r *http.Request) {
+	log.Println("Starting handlerFiles")
+
+	fullcameras := viper.GetStringMap("cameras")
+
+	namecameras := make([]string, 0, len(fullcameras))
+
+	for _, v := range fullcameras {
+		namecameras = append(namecameras, strings.ToLower(v.(string)))
+	}
+	sort.Strings(namecameras)
+
+	vars := mux.Vars(r)
+
+	if len(vars["camera"]) > 0 {
+		// check if valid camera
+		if !contains(namecameras, strings.ToLower(vars["camera"])) {
+			fmt.Fprintf(w, "camera not found")
+			return
+		}
+	}
+
+	camerakey, ok := mapkey(fullcameras, strings.ToLower(vars["camera"]))
+
+	if !ok {
+		fmt.Fprintf(w, "camera key for %s not found\n", strings.ToLower(vars["camera"]))
+		return
+	}
+
+	files, err := ioutil.ReadDir(outputDir + "/camera" + camerakey)
+	if err != nil {
+		fmt.Fprintf(w, "Camera output directory doesnt exist")
+		log.Println(err)
+		return
+	}
+
+	fmt.Fprintf(w, WEBPAGEHEADER)
+	fmt.Fprintf(w, "<table>\n")
+
+	for _, file := range files {
+		if file.IsDir() {
+			fmt.Fprintf(w, "  <tr><td>Directory: %s</td><td></td></tr>\n", file.Name())
+		} else {
+			fmt.Fprintf(w, "  <tr><td><a href=\"./%s?file=%s\">%s</a></td><td>%s</td></tr>\n", strings.ToLower(vars["camera"]), file.Name(), file.Name(), ByteCountSI(file.Size()))
+		}
+	}
+
+	fmt.Fprintf(w, "</table>\n")
+	fmt.Fprintf(w, WEBPAGEFOOTER)
+}
+
+// does a string slice contain a value
+// https://freshman.tech/snippets/go/check-if-slice-contains-element/
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+	return false
+}
+
+// looks up a key in a map when given a value
+// https://stackoverflow.com/questions/33701828/simple-way-of-getting-key-depending-on-value-from-hashmap-in-golang
+func mapkey(m map[string]interface{}, value string) (key string, ok bool) {
+	for k, v := range m {
+		if v.(string) == value {
+			key = k
+			ok = true
+			return
+		}
+	}
+	return
+}
+
+func handlerShowImage(w http.ResponseWriter, r *http.Request) {
+	log.Println("Starting handlerShowImage")
+
+	fullcameras := viper.GetStringMap("cameras")
+
+	namecameras := make([]string, 0, len(fullcameras))
+
+	for _, v := range fullcameras {
+		namecameras = append(namecameras, strings.ToLower(v.(string)))
+	}
+	sort.Strings(namecameras)
+
+	vars := mux.Vars(r)
+	queries := r.URL.Query()
+
+	if queries.Get("file") == "" {
+		fmt.Fprintf(w, "no image specified")
+		return
+	}
+
+	if len(vars["camera"]) > 0 {
+		// check if valid camera
+		if !contains(namecameras, strings.ToLower(vars["camera"])) {
+			fmt.Fprintf(w, "camera not found")
+			return
+		}
+	}
+
+	camerakey, ok := mapkey(fullcameras, strings.ToLower(vars["camera"]))
+
+	if !ok {
+		fmt.Fprintf(w, "camera key for %s not found\n", strings.ToLower(vars["camera"]))
+		return
+	}
+
+	// clean file name to prevent path traversal
+	cleanFileName := path.Join("/", queries.Get("file"))
+
+	w.Header().Set("Content-Type", "image/jpeg")
+	printFile(outputDir+"/camera"+camerakey+cleanFileName, w)
 }

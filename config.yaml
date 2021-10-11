@@ -7,3 +7,4 @@ indexfile: ./index.html
 cameras:
   1: main-door
   2: lobby
+outputdir: ./output
