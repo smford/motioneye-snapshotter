@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/gorilla/mux"
-	_ "github.com/spf13/pflag"
-	_ "github.com/spf13/viper"
+	"github.com/gorilla/mux"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 var (
