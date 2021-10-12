@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,7 +29,7 @@ var (
 	outputDir  string
 )
 
-const applicationVersion string = "v0.3"
+const applicationVersion string = "v0.4"
 
 // header file for webpages
 const webpageheader string = `<!DOCTYPE HTML>
@@ -42,12 +43,11 @@ const webpagefooter string = `</body>
 `
 
 func init() {
-	configFile := flag.String("config", "", "Configuration file")
-	configFilePath := flag.String("configpath", "", "Path to configuration file")
+	flag.String("config", "config.yaml", "Configuration file: /path/to/file.yaml, default = ./config.yaml")
 	flag.Bool("displayconfig", false, "Display configuration")
 	flag.Bool("help", false, "Display help information")
 	flag.String("indexfile", "./index.html", "Default index file")
-	flag.String("listenip", "127.0.0.1", "IP address to bind to")
+	flag.String("listenip", "0.0.0.0", "IP address to bind to (0.0.0.0 = all IPs)")
 	flag.String("listenport", "5757", "Port to bind to")
 	flag.String("meuser", "", "MotionEye Username")
 	flag.String("mesig", "", "MotionEye Snapshot Signiture")
@@ -57,17 +57,25 @@ func init() {
 	pflag.Parse()
 	viper.BindPFlags(pflag.CommandLine)
 
-	if *configFilePath == "" {
-		viper.AddConfigPath(".")
-	} else {
-		viper.AddConfigPath(*configFilePath)
+	if viper.GetBool("help") {
+		displayHelp()
+		os.Exit(0)
 	}
 
-	if *configFile == "" {
-		viper.SetConfigName("config")
-	} else {
-		viper.SetConfigName(*configFile)
+	configdir, configfile := filepath.Split(viper.GetString("config"))
+
+	// set default configuration directory to current directory
+	if configdir == "" {
+		configdir = "."
 	}
+
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(configdir)
+
+	config := strings.TrimSuffix(configfile, ".yaml")
+	config = strings.TrimSuffix(config, ".yml")
+
+	viper.SetConfigName(config)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
@@ -93,11 +101,6 @@ func init() {
 }
 
 func main() {
-	if viper.GetBool("help") {
-		displayHelp()
-		os.Exit(0)
-	}
-
 	if viper.GetBool("displayconfig") {
 		displayConfig()
 		os.Exit(0)
@@ -377,11 +380,11 @@ func handlerShowImage(w http.ResponseWriter, r *http.Request) {
 
 func displayHelp() {
 	message := `      --config string       Configuration file
-      --configpath string   Path to configuration file
+      --config string       Configuration file: /path/to/file.yaml (default "./config.yaml")
       --displayconfig       Display configuration
       --help                Display help information
       --indexfile string    Default index file (default "./index.html")
-      --listenip string     IP address to bind to (default "127.0.0.1")
+      --listenip string     IP address to bind to (0.0.0.0 = all IPs) (default "0.0.0.0")
       --listenport string   Port to bind to (default "5757")
       --meserver string     MotionEye Server URL
       --mesig string        MotionEye Snapshot Signiture
