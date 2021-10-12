@@ -2,9 +2,11 @@ listenip: 0.0.0.0
 listenport: 5757
 meserver: http://127.0.0.1:8765
 meuser: admin
-mesig: xxxxXXxxxxxXxxxx
+outputdir: /path/to/outputdir
 indexfile: /path/to/index.html
 cameras:
   1: main-door
   2: lobby
-outputdir: /path/to/outputdir
+camerasigs:
+  1: xxxxXXxxxxxXxxxx
+  2: yyYYyYyyYYyYyyYy

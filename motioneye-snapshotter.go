@@ -24,12 +24,11 @@ var (
 	listenIp   string
 	listenPort string
 	meServer   string
-	meSig      string
 	meUser     string
 	outputDir  string
 )
 
-const applicationVersion string = "v0.4"
+const applicationVersion string = "v0.5"
 
 // header file for webpages
 const webpageheader string = `<!DOCTYPE HTML>
@@ -50,7 +49,6 @@ func init() {
 	flag.String("listenip", "0.0.0.0", "IP address to bind to (0.0.0.0 = all IPs)")
 	flag.String("listenport", "5757", "Port to bind to")
 	flag.String("meuser", "", "MotionEye Username")
-	flag.String("mesig", "", "MotionEye Snapshot Signiture")
 	flag.String("meserver", "", "MotionEye Server URL")
 	flag.String("outputdir", "./output", "Output Directory")
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
@@ -88,14 +86,12 @@ func init() {
 	listenIp = viper.GetString("listenip")
 	listenPort = viper.GetString("listenport")
 	meServer = viper.GetString("meserver")
-	meSig = viper.GetString("mesig")
 	meUser = viper.GetString("meuser")
 	outputDir = viper.GetString("outputdir")
 
 	log.Println("listenport=", listenPort)
 	log.Println("listenip=", listenIp)
 	log.Println("meserver=", meServer)
-	log.Println("mesig=", meSig)
 	log.Println("meuser=", meUser)
 	log.Println("outputdir=", outputDir)
 }
@@ -111,7 +107,10 @@ func main() {
 
 func takeSnapshot(camera int) {
 	currentTime := time.Now()
-	fileUrl := meServer + "/picture/" + strconv.Itoa(camera) + "/current/?_username=" + meUser + "&_signature=" + meSig
+
+	camerasigs := viper.GetStringMap("camerasigs")
+
+	fileUrl := meServer + "/picture/" + strconv.Itoa(camera) + "/current/?_username=" + meUser + "&_signature=" + camerasigs[strconv.Itoa(camera)].(string)
 	log.Println("fileUrl= ", fileUrl)
 	fileName := (currentTime.Format("20060102_150405") + ".jpg")
 	fileDir := outputDir + "/camera" + strconv.Itoa(camera) + "/"
@@ -379,7 +378,7 @@ func handlerShowImage(w http.ResponseWriter, r *http.Request) {
 }
 
 func displayHelp() {
-	message := `      --config string       Configuration file
+	message := `
       --config string       Configuration file: /path/to/file.yaml (default "./config.yaml")
       --displayconfig       Display configuration
       --help                Display help information
@@ -387,7 +386,6 @@ func displayHelp() {
       --listenip string     IP address to bind to (0.0.0.0 = all IPs) (default "0.0.0.0")
       --listenport string   Port to bind to (default "5757")
       --meserver string     MotionEye Server URL
-      --mesig string        MotionEye Snapshot Signiture
       --meuser string       MotionEye Username
       --outputdir string    Output Directory (default "./output")
 `
