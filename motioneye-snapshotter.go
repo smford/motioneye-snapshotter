@@ -28,7 +28,7 @@ var (
 	outputDir  string
 )
 
-const applicationVersion string = "v0.5"
+const applicationVersion string = "v0.6"
 
 // header file for webpages
 const webpageheader string = `<!DOCTYPE HTML>
@@ -105,7 +105,7 @@ func main() {
 	startWeb(listenIp, listenPort)
 }
 
-func takeSnapshot(camera int) {
+func takeSnapshot(camera int) string {
 	currentTime := time.Now()
 
 	camerasigs := viper.GetStringMap("camerasigs")
@@ -120,6 +120,11 @@ func takeSnapshot(camera int) {
 		log.Println(err)
 	}
 	log.Println("Downloaded: " + fileDir + fileName)
+
+	cameras := viper.GetStringMap("cameras")
+
+	cameraName := cameras[strconv.Itoa(camera)].(string)
+	return "files/" + cameraName + "?file=" + fileName
 }
 
 func downloadFile(filepath string, url string) error {
@@ -200,8 +205,7 @@ func handlerSnap(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("handler snap camera " + string(camera))
-	fmt.Fprintf(w, "%s", "camera "+strconv.Itoa(camera))
-	takeSnapshot(camera)
+	fmt.Fprintf(w, "%s", takeSnapshot(camera))
 
 }
 
