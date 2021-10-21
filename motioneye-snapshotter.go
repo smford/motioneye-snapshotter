@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -28,7 +29,7 @@ var (
 	outputDir  string
 )
 
-const applicationVersion string = "v0.6"
+const applicationVersion string = "v0.7"
 
 // header file for webpages
 const webpageheader string = `<!DOCTYPE HTML>
@@ -40,6 +41,11 @@ const webpageheader string = `<!DOCTYPE HTML>
 const webpagefooter string = `</body>
 </html>
 `
+
+type Cameras struct {
+	ID   string `json:"ID"`
+	Name string `json:"Name"`
+}
 
 func init() {
 	flag.String("config", "config.yaml", "Configuration file: /path/to/file.yaml, default = ./config.yaml")
@@ -222,9 +228,28 @@ func displayConfig() {
 }
 
 func handlerCameras(w http.ResponseWriter, r *http.Request) {
-	groups := viper.GetStringMap("cameras")
-	for k, v := range groups {
-		fmt.Fprintf(w, "%s: %s\n", k, v)
+
+	cameralist := viper.GetStringMap("cameras")
+
+	queries := r.URL.Query()
+
+	if strings.ToLower(queries.Get("json")) == "y" {
+		w.Header().Set("Content-Type", "application/json")
+
+		jsonstring, err := json.Marshal(cameralist)
+
+		if err != nil {
+			fmt.Fprintf(w, "{empty}")
+			return
+		}
+
+		fmt.Println(jsonstring)
+		fmt.Fprintf(w, "%s\n", jsonstring)
+
+	} else {
+		for k, v := range cameralist {
+			fmt.Fprintf(w, "%s: %s\n", k, v)
+		}
 	}
 }
 
