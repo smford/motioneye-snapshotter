@@ -108,7 +108,7 @@ We first need to discover each cameras number and also its signature.  The camer
     ...
     ```
     You can now see in the configuration under `cameras` that `1: front-door` where 1=camera number and front-door is the nice human readable name we chose for the camera.
-    Under `camerasigs` just add the camera number and thecameras specific signature.
+    Under `camerasigs` just add the camera number and the cameras specific signature.
 
 
 Starting motioneye-snapshotter
