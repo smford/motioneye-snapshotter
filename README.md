@@ -80,8 +80,39 @@ camerasigs:
 | camerasigs | A list of cameras and their snapshot signitures (details below) |
 
 
+How to Configure Cameras and also find the Camera Signature
+-----------------------------------------------------------
+
+The configuration for cameras needs to be pulled out from motioneye and is not easy to spot.
+
+We first need to discover each cameras number and also its signature.  The camera number is an internal identifier that motioneye uses to identify a camera.  The camera signature is special string, unique to each camera, that is somewhat like a password.
+
+1. Login as an admin user to motioneye web interface
+1. Go to the configuration of the camera you are wanting
+1. Expand "Video Streaming" then click "Snapshot URL".  A small popup will appear, with a URL displayed similar to what is shown below.
+    ```
+    https://127.0.0.1/picture/1/current/?_username=admin&_signature=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN
+    ```
+1. The camera number is the number in the URL directly after `picture`.  In the above example it is `1`
+1. The camera signature is the string after `_signature=`.  In the above example it is `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN`
+1. Choose a nice human readable name for the camera, in this example we will use `front-door`
+1. Here is the part of config.yaml we need to configure:
+    ```
+    ...
+    cameras:
+      1: front-door
+      2: kitchen
+    camerasigs:
+      1: abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN
+      2: xxxxXXxxxxxXxxxx
+    ...
+    ```
+    You can now see in the configuration under `cameras` that `1: front-door` where 1=camera number and front-door is the nice human readable name we chose for the camera.
+    Under `camerasigs` just add the camera number and thecameras specific signature.
+
+
 Starting motioneye-snapshotter
-----------------------
+------------------------------
 ### From command line
 After creating the config.yaml and the index.html file simply run:
 
