@@ -2,6 +2,7 @@ listenip: 0.0.0.0
 listenport: 5757
 meserver: http://127.0.0.1:8765
 meuser: admin
+snapshoturl: https://snapshots.mydomain.com
 outputdir: /path/to/outputdir
 indexfile: /path/to/index.html
 cameras:

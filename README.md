@@ -55,6 +55,7 @@ listenip: 0.0.0.0
 listenport: 5757
 meserver: http://127.0.0.1:8765
 meuser: admin
+snapshoturl: https://snapshots.mydomain.com
 outputdir: /path/to/outputdir
 cameras:
   1: main-door
@@ -73,6 +74,7 @@ camerasigs:
 | listenport | The port that simple-canary should listen on |
 | meserver | The URL to the MotionEye Server |
 | meuser | The MotionEye user to login and get the snapshot as |
+| snapshoturl | Pretty URL for people to access the web interface of motioneye-snapshotter |
 | outputdir | Directory to store all snapshots |
 | cameras | A list of cameras, with `1` being the camera number within MotionEye, and `main-door` being the name you have chosen to easily identify the camera |
 | camerasigs | A list of cameras and their snapshot signitures (details below) |

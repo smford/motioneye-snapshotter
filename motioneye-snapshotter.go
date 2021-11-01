@@ -25,10 +25,11 @@ var (
 	listenPort string
 	meServer   string
 	meUser     string
+	ssURL      string
 	outputDir  string
 )
 
-const applicationVersion string = "v0.6"
+const applicationVersion string = "v0.6.1"
 
 // header file for webpages
 const webpageheader string = `<!DOCTYPE HTML>
@@ -50,6 +51,7 @@ func init() {
 	flag.String("listenport", "5757", "Port to bind to")
 	flag.String("meuser", "", "MotionEye Username")
 	flag.String("meserver", "", "MotionEye Server URL")
+	flag.String("snapshoturl", "", "MotionEye-Snapshotter URL")
 	flag.String("outputdir", "./output", "Output Directory")
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
@@ -87,12 +89,14 @@ func init() {
 	listenPort = viper.GetString("listenport")
 	meServer = viper.GetString("meserver")
 	meUser = viper.GetString("meuser")
+	ssURL = viper.GetString("snapshoturl")
 	outputDir = viper.GetString("outputdir")
 
 	log.Println("listenport=", listenPort)
 	log.Println("listenip=", listenIp)
 	log.Println("meserver=", meServer)
 	log.Println("meuser=", meUser)
+	log.Println("ssURL=", ssURL)
 	log.Println("outputdir=", outputDir)
 }
 
@@ -124,7 +128,7 @@ func takeSnapshot(camera int) string {
 	cameras := viper.GetStringMap("cameras")
 
 	cameraName := cameras[strconv.Itoa(camera)].(string)
-	return "files/" + cameraName + "?file=" + fileName
+	return ssURL + "files/" + cameraName + "?file=" + fileName
 }
 
 func downloadFile(filepath string, url string) error {
