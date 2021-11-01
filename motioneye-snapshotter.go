@@ -29,7 +29,7 @@ var (
 	outputDir  string
 )
 
-const applicationVersion string = "v0.6.1"
+const applicationVersion string = "v0.6.2"
 
 // header file for webpages
 const webpageheader string = `<!DOCTYPE HTML>
@@ -104,6 +104,10 @@ func main() {
 	if viper.GetBool("displayconfig") {
 		displayConfig()
 		os.Exit(0)
+	}
+
+	if viper.GetBool("canaryenable") {
+		go canaryCheckin(viper.GetString("canaryurl"), viper.GetInt("canaryinterval"))
 	}
 
 	startWeb(listenIp, listenPort)
@@ -399,4 +403,24 @@ func displayHelp() {
 `
 	fmt.Println("motioneye-snapshotter " + applicationVersion)
 	fmt.Println(message)
+}
+
+func canaryCheckin(url string, interval int) {
+	ticker := time.NewTicker(time.Duration(interval) * time.Second)
+	for _ = range ticker.C {
+		client := http.Client{
+			Timeout: 5 * time.Second,
+		}
+		resp, err := client.Get(url)
+		if err != nil {
+			log.Printf("Error: Could not connect to canary with error:%s", err)
+		} else {
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				log.Printf("Error: Could not checkin to canary with error:%s", err)
+			} else {
+				log.Println("Success: Canary Checkin")
+			}
+		}
+	}
 }
