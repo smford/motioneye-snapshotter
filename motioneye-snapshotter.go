@@ -29,7 +29,7 @@ var (
 	outputDir  string
 )
 
-const applicationVersion string = "v0.6.2"
+const applicationVersion string = "v0.6.3"
 
 // header file for webpages
 const webpageheader string = `<!DOCTYPE HTML>
@@ -200,19 +200,20 @@ func handlerSnap(w http.ResponseWriter, r *http.Request) {
 	log.Printf("vars = %q\n", vars)
 	log.Printf("queries = %q\n", queries)
 
-	var camera int = 0
-
-	switch {
-	case strings.ToLower(queries.Get("camera")) == "main-door":
-		camera = 1
-	case strings.ToLower(queries.Get("camera")) == "lobby":
-		camera = 2
-	default:
-		fmt.Fprintf(w, "%s", "unknown camera")
+	camerakey, ok := mapkey(viper.GetStringMap("cameras"), strings.ToLower(queries.Get("camera")))
+	if !ok {
+		fmt.Fprintf(w, "Camera not found")
 		return
 	}
 
-	log.Println("handler snap camera " + string(camera))
+	camera, err := strconv.Atoi(camerakey)
+	if err != nil {
+		fmt.Fprintf(w, "Error converting camera id")
+		log.Println(err)
+		return
+	}
+
+	log.Println("handler snap camera " + string(camerakey))
 	fmt.Fprintf(w, "%s", takeSnapshot(camera))
 
 }
